@@ -1,34 +1,71 @@
 # Trading Scripts
 
-Ce projet rassemble des scripts Python pour collecter, stocker et analyser des données de marché, en particulier des données Bitcoin et des indicateurs macroéconomiques.
+Ce projet rassemble des scripts Python pour collecter, stocker et analyser des données de marché, notamment des données Bitcoin, SP500 et pétrole.
 
 ## Structure du projet
 
-- `collectors/macro/` : collecteurs macroéconomiques pour les données BTC et d'autres indicateurs (prix BTC, DXY, inflation, pétrole, chômage, MSTR).
-- `collectors/onchain/` : collecteurs de données on-chain et d'exchanges (structure présente, à compléter selon les besoins).
+- `collectors/macro/` : collecteurs macroéconomiques pour les données de marché.
+- `collectors/onchain/` : collecteurs on-chain / exchange (scaffold présent, contenu à compléter).
 - `database/` : client MongoDB Atlas pour la connexion et l'accès aux collections.
-- `analysis/` : scripts d'analyse et d'indicateurs (MVRV, Fibonacci, autres indicateurs techniques).
-- `llm/` : génération de signaux basés sur des modèles ou des règles.
-- `dashboard/` : interface de visualisation / dashboard (structure de dossier présente, à développer).
+- `analysis/` : scripts d'analyse et visualisation des séries de prix.
+- `llm/` : génération de signaux basée sur des modèles ou des règles (module vide pour l'instant).
+- `dashboard/` : interface Flask légère pour afficher les prix et un graphique.
 
-## Fonctionnalité principale
+## Fonctionnalités implémentées
 
-Le script `collectors/macro/btc_price.py` :
+### Collecteurs macro
 
-- récupère les bougies OHLCV de la paire `BTCUSDT` depuis l'API Binance
-- collecte les données à partir du 1er janvier 2020
-- stocke les données dans MongoDB avec des documents contenant : timestamp, open, high, low, close, volume, timeframe, source
-- supporte deux timeframes : `btc_price_1d` et `btc_price_4h`
-- utilise `upsert` pour éviter l'insertion de doublons
+- `collectors/macro/btc_price.py`
+  - récupère les bougies OHLCV de `BTCUSDT` depuis l'API Binance
+  - collecte les données depuis le 1er janvier 2020
+  - stocke les documents dans MongoDB avec : `timestamp`, `open`, `high`, `low`, `close`, `volume`, `timeframe`, `source`
+  - supporte deux collections : `btc_price_1d` et `btc_price_4h`
+  - utilise `upsert` pour éviter les doublons
+
+- `collectors/macro/sp500_price.py`
+  - récupère les données journalières du SP500 via `yfinance` (`^GSPC`)
+  - stocke les données dans la collection `sp500_price_1d`
+  - collecte les données depuis le 1er janvier 2019
+
+- `collectors/macro/oil_price.py`
+  - récupère les données journalières du WTI via `yfinance` (`CL=F`)
+  - stocke les données dans la collection `oil_price_1d`
+  - collecte les données depuis le 1er janvier 2019
+
+### Base de données
+
+- `database/mongo_client.py`
+  - charge la variable `MONGO_URI` depuis `.env`
+  - renvoie une collection MongoDB depuis la base `trading_db`
+  - inclut une fonction de test de connexion
+
+### Analyse et visualisation
+
+- `analysis/chart_btc_sp500_oil.py`
+  - charge les séries `btc_price_1d`, `sp500_price_1d` et `oil_price_1d`
+  - normalise chaque série sur une base 100
+  - créé un graphique comparatif et le sauvegarde dans `exports/btc_sp500_oil.png`
+
+### Dashboard
+
+- `dashboard/app.py`
+  - application Flask simple
+  - affiche les derniers prix de BTC, SP500 et pétrole
+  - intègre une image PNG générée dans `exports/btc_sp500_oil.png`
+
+## Etat actuel des fichiers
+
+- `requirements.txt` est rempli avec les dépendances nécessaires : `pymongo`, `python-dotenv`, `requests`, `yfinance`, `pandas`, `numpy`, `matplotlib`, `seaborn`, `flask`, `python-dateutil`.
+- `docker-compose.yml` reste vide.
+- `Dockerfile` reste vide.
+- `collectors/onchain/` contient des fichiers vides ou en attente de développement.
+- `analysis/indicators.py`, `analysis/fibonacci.py`, `analysis/mvrv.py` sont pour l’instant des placeholders.
+- `llm/signal_generator.py` est actuellement vide.
 
 ## Prérequis
 
 - Python 3.x
-- `requests`
-- `pymongo`
-- `python-dotenv`
-
-> Les fichiers `requirements.txt`, `docker-compose.yml`, `Dockerfile` et `dashboard/app.py` sont présents dans le projet mais semblent actuellement vides. Ils peuvent être complétés ultérieurement selon l'environnement d'exécution et l'interface souhaitée.
+- `pip install -r requirements.txt`
 
 ## Configuration
 
@@ -39,24 +76,44 @@ Le script `collectors/macro/btc_price.py` :
 MONGO_URI=<votre_mongo_uri>
 ```
 
-3. Installez les dépendances :
-
-```bash
-pip install requests pymongo python-dotenv
-```
-
 ## Exécution
 
-Pour lancer le collecteur BTC :
+### Collecteurs
+
+- BTC :
 
 ```bash
 python collectors/macro/btc_price.py
 ```
 
-Cela va récupérer les bougies Binance et les insérer dans les collections MongoDB : `btc_price_1d` et `btc_price_4h`.
+- SP500 :
 
-## Remarques
+```bash
+python collectors/macro/sp500_price.py
+```
 
-- `database/mongo_client.py` gère la connexion à MongoDB Atlas via `MONGO_URI`.
-- Le projet est conçu pour être étendu avec d'autres collecteurs et une interface de dashboard.
-- Les fichiers de configuration Docker et le dashboard restent à implémenter.
+- Pétrole :
+
+```bash
+python collectors/macro/oil_price.py
+```
+
+### Analyse
+
+```bash
+python analysis/chart_btc_sp500_oil.py
+```
+
+### Dashboard
+
+```bash
+python dashboard/app.py
+```
+
+Ensuite, ouvrez `http://127.0.0.1:5000` dans votre navigateur.
+
+## Notes
+
+- Le projet contient déjà des collecteurs fonctionnels pour BTC, SP500 et pétrole.
+- Les autres collecteurs macro et on-chain sont en structure de projet mais restent à implémenter.
+- Le dashboard Flask affiche des données stockées en base et dépend du graphique exporté dans `exports/btc_sp500_oil.png`.
