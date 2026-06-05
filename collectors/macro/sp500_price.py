@@ -1,7 +1,7 @@
 # =============================================================================
-# Petrole WTI - Collecteur via yfinance
-# Ticker : CL=F
-# Collection MongoDB : oil_price_1d
+# SP500 - Collecteur via yfinance
+# Ticker : ^GSPC
+# Collection MongoDB : sp500_price_1d
 # Donnees depuis janvier 2019
 # =============================================================================
 
@@ -14,14 +14,14 @@ sys.path.insert(0, ROOT)
 
 from database.mongo_client import get_collection
 
-TICKER          = "CL=F"
-COLLECTION_NAME = "oil_price_1d"
+TICKER          = "^GSPC"
+COLLECTION_NAME = "sp500_price_1d"
 START_DATE      = "2019-01-01"
 
 
 def fetch_and_save():
     print("=" * 60)
-    print("Petrole WTI - Collecteur yfinance")
+    print("SP500 - Collecteur yfinance")
     print(f"Ticker     : {TICKER}")
     print(f"Collection : {COLLECTION_NAME}")
     print(f"Depuis     : {START_DATE}")
