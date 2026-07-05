@@ -1,119 +1,227 @@
-# Trading Scripts
+# Trading Dashboard - Détection de signaux crypto
 
-Ce projet rassemble des scripts Python pour collecter, stocker et analyser des données de marché, notamment des données Bitcoin, SP500 et pétrole.
+Système automatisé de détection de signaux de trading pour le marché
+des futures Bitcoin, basé sur l'analyse de données macroéconomiques
+et d'indicateurs techniques, avec intégration d'un modèle IA (Claude).
 
-## Structure du projet
+---
 
-- `collectors/macro/` : collecteurs macroéconomiques pour les données de marché.
-- `collectors/onchain/` : collecteurs on-chain / exchange (scaffold présent, contenu à compléter).
-- `database/` : client MongoDB Atlas pour la connexion et l'accès aux collections.
-- `analysis/` : scripts d'analyse et visualisation des séries de prix.
-- `llm/` : génération de signaux basée sur des modèles ou des règles (module vide pour l'instant).
-- `dashboard/` : interface Flask légère pour afficher les prix et un graphique.
+## Objectif
 
-## Fonctionnalités implémentées
+Détecter les entrées potentielles sur le marché des futures BTC
+(positions LONG ou SHORT) en combinant :
+- Les données de prix du Bitcoin (Binance API)
+- Les indicateurs macroéconomiques américains (FRED API)
+- Les marchés traditionnels (SP500, pétrole, or, argent)
+- Les indicateurs techniques (RSI, MACD)
+- L'analyse par intelligence artificielle (Claude API)
 
-### Collecteurs macro
+---
 
-- `collectors/macro/btc_price.py`
-  - récupère les bougies OHLCV de `BTCUSDT` depuis l'API Binance
-  - collecte les données depuis le 1er janvier 2020
-  - stocke les documents dans MongoDB avec : `timestamp`, `open`, `high`, `low`, `close`, `volume`, `timeframe`, `source`
-  - supporte deux collections : `btc_price_1d` et `btc_price_4h`
-  - utilise `upsert` pour éviter les doublons
+## Architecture
+trading_scripts/
+├── collectors/
+│   └── macro/
+│       ├── btc_price.py         # Prix BTC via Binance API
+│       ├── sp500_price.py       # SP500 via yfinance
+│       ├── oil_price.py         # Pétrole WTI via yfinance
+│       ├── gold_silver.py       # Or et Argent via yfinance
+│       ├── inflation_usa.py     # Inflation CPI via FRED API
+│       └── unemployment_usa.py  # Chômage US via FRED API
+├── database/
+│   └── mongo_client.py          # Connexion MongoDB Atlas
+├── analysis/
+│   ├── indicators.py            # RSI et MACD
+│   └── statistics.py            # Statistiques et corrélations
+├── llm/
+│   └── signal_generator.py      # Analyse IA via Claude API
+├── dashboard/
+│   └── app.py                   # Dashboard Flask
+├── scheduler.py                 # Mise à jour automatique des données
+└── requirements.txt
+---
 
-- `collectors/macro/sp500_price.py`
-  - récupère les données journalières du SP500 via `yfinance` (`^GSPC`)
-  - stocke les données dans la collection `sp500_price_1d`
-  - collecte les données depuis le 1er janvier 2019
+## Technologies utilisées
 
-- `collectors/macro/oil_price.py`
-  - récupère les données journalières du WTI via `yfinance` (`CL=F`)
-  - stocke les données dans la collection `oil_price_1d`
-  - collecte les données depuis le 1er janvier 2019
+| Categorie | Technologie |
+|---|---|
+| Langage | Python 3.11 |
+| Base de données | MongoDB Atlas |
+| APIs données | Binance, yfinance, FRED |
+| Analyse | pandas, numpy |
+| Visualisation | matplotlib |
+| IA | Claude API (Anthropic) |
+| Dashboard | Flask |
+| Environnement | Ubuntu 24.04 (WSL2) + Anaconda |
+| Versionnement | Git + GitHub |
 
-### Base de données
+---
 
-- `database/mongo_client.py`
-  - charge la variable `MONGO_URI` depuis `.env`
-  - renvoie une collection MongoDB depuis la base `trading_db`
-  - inclut une fonction de test de connexion
+## APIs gratuites utilisées
 
-### Analyse et visualisation
+| Source | Données | Collection MongoDB |
+|---|---|---|
+| Binance API | Prix BTC OHLCV | btc_price_1d, btc_price_4h |
+| yfinance | SP500, Pétrole, Or, Argent | sp500_price_1d, oil_price_1d, gold_price_1d, silver_price_1d |
+| FRED API | Inflation CPI, Chômage US | inflation_usa, unemployment_usa |
 
-- `analysis/chart_btc_sp500_oil.py`
-  - charge les séries `btc_price_1d`, `sp500_price_1d` et `oil_price_1d`
-  - normalise chaque série sur une base 100
-  - créé un graphique comparatif et le sauvegarde dans `exports/btc_sp500_oil.png`
+---
 
-### Dashboard
+## Données collectées
 
-- `dashboard/app.py`
-  - application Flask simple
-  - affiche les derniers prix de BTC, SP500 et pétrole
-  - intègre une image PNG générée dans `exports/btc_sp500_oil.png`
+| Collection | Documents | Période |
+|---|---|---|
+| btc_price_1d | 2378 bougies | Jan 2020 - Juil 2026 |
+| btc_price_4h | 14021 bougies | Jan 2020 - Juil 2026 |
+| sp500_price_1d | 1866 documents | Jan 2019 - Juil 2026 |
+| oil_price_1d | 1868 documents | Jan 2019 - Juil 2026 |
+| gold_price_1d | 1888 documents | Jan 2019 - Juil 2026 |
+| silver_price_1d | 1888 documents | Jan 2019 - Juil 2026 |
+| inflation_usa | 88 documents | Jan 2019 - Juil 2026 |
+| unemployment_usa | 88 documents | Jan 2019 - Juil 2026 |
 
-## Etat actuel des fichiers
+---
 
-- `requirements.txt` est rempli avec les dépendances nécessaires : `pymongo`, `python-dotenv`, `requests`, `yfinance`, `pandas`, `numpy`, `matplotlib`, `seaborn`, `flask`, `python-dateutil`.
-- `docker-compose.yml` reste vide.
-- `Dockerfile` reste vide.
-- `collectors/onchain/` contient des fichiers vides ou en attente de développement.
-- `analysis/indicators.py`, `analysis/fibonacci.py`, `analysis/mvrv.py` sont pour l’instant des placeholders.
-- `llm/signal_generator.py` est actuellement vide.
+## Indicateurs techniques
 
-## Prérequis
+### RSI (Relative Strength Index)
+- Période : 14 jours
+- RSI > 70 : Zone de surachat → signal potentiel SHORT
+- RSI < 30 : Zone de survente → signal potentiel LONG
 
-- Python 3.x
-- `pip install -r requirements.txt`
+### MACD (Moving Average Convergence Divergence)
+- Paramètres : 12 / 26 / 9
+- MACD > Signal : momentum haussier → signal potentiel LONG
+- MACD < Signal : momentum baissier → signal potentiel SHORT
 
-## Configuration
+### Signal final
+- LONG : RSI et MACD confirment tous les deux une tendance haussière
+- SHORT : RSI et MACD confirment tous les deux une tendance baissière
+- NEUTRE : Signaux contradictoires ou zone neutre
 
-1. Créez un fichier `.env` à la racine du projet.
-2. Ajoutez la variable MongoDB :
+---
 
-```env
-MONGO_URI=<votre_mongo_uri>
+## Statistiques clés (2020 - 2026)
+
+| Actif | Rendement total | Volatilité annuelle | Max Drawdown |
+|---|---|---|---|
+| BTC | +771.6% | 50.6% | -76.6% |
+| SP500 | +202.2% | 19.6% | -33.9% |
+| Or | +226.9% | 18.0% | -25.0% |
+| Pétrole | +99.9% | 131.7% | -156.8% |
+
+### Corrélations avec BTC
+- BTC / SP500 : **0.87** — très forte corrélation
+- BTC / Or : **0.71** — corrélation modérée
+- BTC / Pétrole : **0.15** — faible corrélation
+
+---
+
+## Installation
+
+### Prérequis
+- Windows avec WSL2 (Ubuntu 24.04)
+- Anaconda installé dans WSL2
+- Compte MongoDB Atlas (gratuit)
+- Clé API FRED (gratuite)
+- Clé API Anthropic
+
+### 1. Cloner le projet
+
+```bash
+git clone https://github.com/ftrovao/trading_scripts.git
+cd trading_scripts
 ```
 
-## Exécution
+### 2. Créer l'environnement
 
-### Collecteurs
+```bash
+conda create -n crypto_signals python=3.11 -y
+conda activate crypto_signals
+pip install -r requirements.txt
+```
 
-- BTC :
+### 3. Configurer les variables d'environnement
+
+Créer un fichier `.env` à la racine :
+
+MONGO_URI=mongodb+srv://utilisateur:motdepasse@cluster.mongodb.net/?appName=Cluster0
+FRED_API_KEY=votre_cle_fred
+ANTHROPIC_API_KEY=votre_cle_anthropic
+
+### 4. Collecter les données
 
 ```bash
 python collectors/macro/btc_price.py
-```
-
-- SP500 :
-
-```bash
 python collectors/macro/sp500_price.py
-```
-
-- Pétrole :
-
-```bash
 python collectors/macro/oil_price.py
+python collectors/macro/gold_silver.py
+python collectors/macro/inflation_usa.py
+python collectors/macro/unemployment_usa.py
 ```
 
-### Analyse
+### 5. Lancer le dashboard
 
 ```bash
-python analysis/chart_btc_sp500_oil.py
-```
-
-### Dashboard
-
-```bash
+# Terminal 1 - Dashboard
 python dashboard/app.py
+
+# Terminal 2 - Mise à jour automatique
+python scheduler.py
 ```
 
-Ensuite, ouvrez `http://127.0.0.1:5000` dans votre navigateur.
+Ouvrir dans le navigateur : **http://localhost:5000**
 
-## Notes
+---
 
-- Le projet contient déjà des collecteurs fonctionnels pour BTC, SP500 et pétrole.
-- Les autres collecteurs macro et on-chain sont en structure de projet mais restent à implémenter.
-- Le dashboard Flask affiche des données stockées en base et dépend du graphique exporté dans `exports/btc_sp500_oil.png`.
+## Dashboard
+
+Le dashboard Flask propose deux pages :
+
+### Page principale - Dashboard
+- Prix en temps réel : BTC, SP500, Pétrole, RSI, Inflation
+- Signal de trading : LONG / SHORT / NEUTRE
+- 5 graphiques navigables :
+  - BTC x SP500
+  - BTC x Pétrole
+  - BTC x Inflation USA
+  - RSI (14)
+  - MACD (12/26/9)
+- Analyse IA automatique par Claude
+- Chat interactif pour poser des questions
+
+### Page statistiques
+- Rendements totaux et annuels
+- Volatilité annualisée et Max Drawdown
+- Corrélations entre BTC et les actifs macro
+- Graphique de performance normalisée base 100
+
+---
+
+## Mise à jour automatique
+
+Le scheduler met à jour les données automatiquement :
+
+```bash
+python scheduler.py
+```
+
+- BTC : toutes les 4 heures
+- Macro (SP500, pétrole, or, argent, inflation, chômage) : tous les jours à 06h00
+
+---
+
+## Auteur
+
+**Ousmane BAH**
+Étudiant en Techniques de l'informatique
+Collège Grasset — Montréal, Québec
+
+Projet de stage supervisé par **Fernando Trovao**
+Session été 2026
+
+---
+
+## Licence
+
+Projet académique — Collège Grasset 2026
