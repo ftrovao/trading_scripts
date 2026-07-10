@@ -114,11 +114,11 @@ TEMPLATE = """
 
     <!-- Navigation principale -->
     <div class="nav">
-        <a href="/"           class="nav-btn {{ 'active' if page == 'dashboard' else '' }}">Dashboard</a>
+        <a href="/"             class="nav-btn {{ 'active' if page == 'dashboard' else '' }}">Dashboard</a>
         <a href="/statistiques" class="nav-btn {{ 'active' if page == 'statistiques' else '' }}">Statistiques</a>
     </div>
 
-    <!-- Boutons graphiques (dashboard seulement) -->
+    <!-- Boutons graphiques et contenu dashboard -->
     {% if page == 'dashboard' %}
     <div class="buttons">
         <a href="/?graph=sp500"     class="btn {{ 'active' if graph == 'sp500' else '' }}">BTC x SP500</a>
@@ -144,9 +144,57 @@ TEMPLATE = """
         <div class="chat-input">
             <input type="text" id="question"
                    placeholder="Ex: Quel est le signal actuel pour le BTC ?">
-            <button onclick="envoyerQuestion()">Envoyer</button>
+            <button id="btn-envoyer">Envoyer</button>
         </div>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        const input    = document.getElementById('question');
+        const messages = document.getElementById('messages');
+        const btnEnv   = document.getElementById('btn-envoyer');
+
+        async function envoyerQuestion() {
+            const question = input.value.trim();
+            if (!question) return;
+
+            // Afficher la question
+            messages.innerHTML += `<div class="msg-user"><strong>Vous :</strong> ${question}</div>`;
+            input.value = '';
+
+            // Indicateur de chargement
+            const loadingId = 'loading-' + Date.now();
+            messages.innerHTML += `<div class="msg-assistant loading" id="${loadingId}">IA en train de reflechir...</div>`;
+            messages.scrollTop = messages.scrollHeight;
+
+            try {
+                const response = await fetch('/chat', {
+                    method:  'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body:    JSON.stringify({question: question})
+                });
+
+                const data = await response.json();
+                document.getElementById(loadingId).remove();
+                messages.innerHTML += `<div class="msg-assistant"><strong>IA :</strong> ${data.reponse}</div>`;
+                messages.scrollTop  = messages.scrollHeight;
+
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                messages.innerHTML += `<div class="msg-assistant">Erreur de connexion a l'IA.</div>`;
+            }
+        }
+
+        btnEnv.addEventListener('click', envoyerQuestion);
+
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') envoyerQuestion();
+        });
+
+    });
+    </script>
+
     {% endif %}
 
 </body>
@@ -193,7 +241,6 @@ TEMPLATE_STATS = """
 <body>
     <h1>Trading Dashboard</h1>
 
-    <!-- Prix actuels -->
     <div class="stats">
         <div class="card">
             <div class="val">{{ btc_price }}</div>
@@ -217,7 +264,6 @@ TEMPLATE_STATS = """
         </div>
     </div>
 
-    <!-- Navigation -->
     <div class="nav">
         <a href="/"             class="nav-btn">Dashboard</a>
         <a href="/statistiques" class="nav-btn active">Statistiques</a>
@@ -225,7 +271,6 @@ TEMPLATE_STATS = """
 
     <p class="periode">Periode analysee : {{ s.debut }} -> {{ s.fin }}</p>
 
-    <!-- Rendements totaux -->
     <div class="section">
         <h2>Rendements totaux</h2>
         <table>
@@ -262,7 +307,6 @@ TEMPLATE_STATS = """
         </table>
     </div>
 
-    <!-- Risque -->
     <div class="section">
         <h2>Risque et volatilite</h2>
         <table>
@@ -294,7 +338,6 @@ TEMPLATE_STATS = """
         </table>
     </div>
 
-    <!-- Correlations -->
     <div class="section">
         <h2>Correlations avec BTC</h2>
         <table>
@@ -325,7 +368,6 @@ TEMPLATE_STATS = """
         </table>
     </div>
 
-    <!-- Graphique performance normalisee -->
     <div class="section">
         <h2>Performance normalisee base 100</h2>
         <img src="data:image/png;base64,{{ chart }}" alt="Performance normalisee">
@@ -431,9 +473,6 @@ def graphique_macd(df):
 
 
 def graphique_performance_normalisee():
-    """
-    Graphique performance normalisee base 100 pour la page statistiques.
-    """
     df_btc  = load_collection("btc_price_1d")
     df_sp   = load_collection("sp500_price_1d")
     df_oil  = load_collection("oil_price_1d")
@@ -532,9 +571,6 @@ def get_chart(graph_type, df_btc):
 # =============================================================================
 
 def charger_indicateurs():
-    """
-    Charge BTC et calcule RSI et MACD.
-    """
     df_btc           = load_btc()
     df_btc["rsi"]    = calcul_rsi(df_btc["close"])
     macd_df          = calcul_macd(df_btc["close"])
@@ -554,9 +590,6 @@ def charger_indicateurs():
 
 
 def contexte_commun(derniere, signal, btc, sp, oil, inf):
-    """
-    Retourne les variables communes aux deux templates.
-    """
     return {
         "btc_price":       f"${btc['close']:,.0f}" if btc else "N/A",
         "sp500_price":     f"${sp['close']:,.0f}"  if sp  else "N/A",
@@ -606,17 +639,14 @@ def index():
 def statistiques():
     df_btc, derniere, signal, btc, sp, oil, inf = charger_indicateurs()
 
-    # Charger les statistiques
     stats = generer_statistiques()
 
-    # Ajouter rendement annuel
     from analysis.statistics import load_serie, calcul_rendement_annuel
     stats["btc_rendement_annuel"]  = round(calcul_rendement_annuel(load_serie("btc_price_1d")),  1)
     stats["sp_rendement_annuel"]   = round(calcul_rendement_annuel(load_serie("sp500_price_1d")), 1)
     stats["gold_rendement_annuel"] = round(calcul_rendement_annuel(load_serie("gold_price_1d")), 1)
     stats["oil_rendement_annuel"]  = round(calcul_rendement_annuel(load_serie("oil_price_1d")),  1)
 
-    # Convertir en objet simple pour le template
     class Stats:
         pass
 
